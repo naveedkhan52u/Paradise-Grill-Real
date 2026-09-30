@@ -1,6 +1,7 @@
-import { RoomItem } from '../types';
+import { supabase } from '../lib/supabase';
+import type { RoomItem } from '../types';
 
-export const HOTEL_ROOMS: RoomItem[] = [
+const FALLBACK_HOTEL_ROOMS: RoomItem[] = [
   {
     id: 'deluxe-river-view',
     name: 'Deluxe River View Room',
@@ -80,7 +81,7 @@ export const HOTEL_ROOMS: RoomItem[] = [
   }
 ];
 
-export const HOTEL_SERVICES = [
+const FALLBACK_HOTEL_SERVICES = [
   {
     icon: 'water_drop',
     title: '24/7 Hot Water & Power',
@@ -102,3 +103,53 @@ export const HOTEL_SERVICES = [
     desc: 'Convenient 12-minute pick & drop service to Gilgit Airport (GIL) on request'
   }
 ];
+
+
+const hotelData = await (async () => {
+  try {
+    const [
+      { data: rooms },
+      { data: images },
+      { data: services }
+    ] = await Promise.all([
+      supabase.from('rooms').select('*').eq('is_available', true).order('sort_order'),
+      supabase.from('room_images').select('*').order('sort_order'),
+      supabase.from('hotel_services').select('*').eq('is_active', true).order('sort_order')
+    ]);
+
+    const imagesByRoom = new Map<string, string[]>();
+    (images || []).forEach((img: any) => {
+      const list = imagesByRoom.get(img.room_id) || [];
+      list.push(img.image_url);
+      imagesByRoom.set(img.room_id, list);
+    });
+
+    const mappedRooms: RoomItem[] = (rooms || []).map((room: any) => ({
+      id: room.id,
+      name: room.name,
+      tagline: room.tagline || '',
+      badge: room.badge || '',
+      pricePerNight: Number(room.price_per_night),
+      capacity: room.capacity || '',
+      bedType: room.bed_type || '',
+      sizeSqFt: Number(room.size_sq_ft || 0),
+      image: room.image_url || '',
+      gallery: imagesByRoom.get(room.id) || (room.image_url ? [room.image_url] : []),
+      description: room.description || '',
+      amenities: room.amenities || []
+    }));
+
+    return {
+      rooms: mappedRooms.length ? mappedRooms : FALLBACK_HOTEL_ROOMS,
+      services: services?.length ? services.map((s: any) => ({
+        icon: s.icon || '', title: s.title, desc: s.description || ''
+      })) : FALLBACK_HOTEL_SERVICES
+    };
+  } catch (error) {
+    console.warn('Supabase hotel data load failed; using local fallback data.', error);
+    return { rooms: FALLBACK_HOTEL_ROOMS, services: FALLBACK_HOTEL_SERVICES };
+  }
+})();
+
+export const HOTEL_ROOMS = hotelData.rooms;
+export const HOTEL_SERVICES = hotelData.services;
