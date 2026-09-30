@@ -1,0 +1,6 @@
+{
+  "name": "Paradise Grill - Gilgit Baltistan",
+  "description": "Riverside feast & dining at Paradise Hotel & Restaurant along the Gilgit River in northern Pakistan. Reserve glacier view terrace tables, order wood-fired charcoal BBQ, Shinwari karahi, and fresh river trout.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
