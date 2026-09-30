@@ -256,6 +256,14 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenCallModal }) =
             >
               Direct Call
             </button>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => window.history.pushState({}, '', '/admin')}
+              className="text-[#869285] hover:text-white transition-colors cursor-pointer"
+            >
+              Admin Login
+            </button>
           </div>
         </div>
       </div>
