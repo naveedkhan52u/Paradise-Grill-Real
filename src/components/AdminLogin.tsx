@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-export const AdminLogin: React.FC<{onSuccess:()=>void; onCancel:()=>void}> = ({onSuccess,onCancel}) => {
+export const AdminLogin: React.FC<{onSuccess:(user:any)=>void; onCancel:()=>void}> = ({onSuccess,onCancel}) => {
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState('');
   const [error,setError]=useState('');
@@ -9,9 +9,12 @@ export const AdminLogin: React.FC<{onSuccess:()=>void; onCancel:()=>void}> = ({o
 
   const submit=async(e:React.FormEvent)=>{
     e.preventDefault(); setBusy(true); setError('');
-    const {error}=await supabase.auth.signInWithPassword({email,password});
+    const {data,error}=await supabase.auth.signInWithPassword({email,password});
     if(error) setError('Invalid email or password.');
-    else onSuccess();
+    else if(data.user?.app_metadata?.role !== 'admin') {
+      await supabase.auth.signOut();
+      setError('This account is not authorized for the admin dashboard.');
+    } else onSuccess(data.user);
     setBusy(false);
   };
 
