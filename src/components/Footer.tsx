@@ -259,7 +259,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenCallModal }) =
             <span>·</span>
             <button
               type="button"
-              onClick={() => window.history.pushState({}, '', '/admin')}
+              onClick={() => { window.location.href = '/admin'; }}
               className="text-[#869285] hover:text-white transition-colors cursor-pointer"
             >
               Admin Login
