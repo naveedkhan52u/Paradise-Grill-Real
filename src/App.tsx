@@ -148,7 +148,79 @@ export default function App() {
     }
   };
 
-  const handleConfirmOrder = (data: ReservationData, total: number) => {
+  const handleConfirmOrder = async (data: ReservationData, total: number) => {
+    const guestName = data.guestName.trim() || 'Valued Guest';
+    const guestPhone = data.guestPhone.trim() || RESTAURANT_INFO.phone;
+    const deliveryZone = DELIVERY_ZONES.find(z => z.name === data.deliveryZone);
+    const reservationId = crypto.randomUUID();
+    const orderId = crypto.randomUUID();
+    const itemsSubtotal = cart.reduce((sum, item) => sum + item.qty * item.item.price, 0);
+    const packagingFee = cart.length > 0 ? 120 : 0;
+    const deliveryFee = data.mode === 'delivery' ? (deliveryZone?.fee ?? 150) : 0;
+
+    if (data.mode === 'reserve') {
+      const { error: reservationError } = await supabase.from('restaurant_reservations').insert({
+        id: reservationId,
+        mode: 'reserve',
+        table_zone: data.tableZone,
+        party_size: Number.parseInt(data.partySize, 10) || 1,
+        time_slot: data.timeSlot,
+        guest_name: guestName,
+        guest_phone: guestPhone,
+        special_request: data.specialRequest || null,
+        status: 'pending'
+      });
+
+      if (reservationError) {
+        showToast('Unable to save the reservation. Please try again.');
+        return;
+      }
+    }
+
+    const { error: orderError } = await supabase.from('orders').insert({
+      id: orderId,
+      reservation_id: data.mode === 'reserve' ? reservationId : null,
+      mode: data.mode === 'reserve' ? 'dinein' : data.mode,
+      guest_name: guestName,
+      guest_phone: guestPhone,
+      table_zone: data.mode === 'reserve' ? data.tableZone : null,
+      pickup_time: data.mode === 'pickup' ? data.pickupTime : null,
+      vehicle_details: data.vehicleDetails || null,
+      delivery_zone_id: data.mode === 'delivery' ? (deliveryZone?.id ?? null) : null,
+      delivery_address: data.mode === 'delivery' ? data.deliveryAddress : null,
+      special_request: data.specialRequest || null,
+      subtotal: itemsSubtotal,
+      delivery_fee: deliveryFee,
+      total,
+      status: 'pending'
+    });
+
+    if (orderError) {
+      showToast('Unable to save the order. Please try again.');
+      return;
+    }
+
+    if (cart.length > 0) {
+      const { error: itemsError } = await supabase.from('order_items').insert(
+        cart.map(item => ({
+          order_id: orderId,
+          menu_item_id: item.item.id,
+          item_title: item.item.title,
+          unit_price: item.item.price,
+          quantity: item.qty,
+          dining_mode: item.options?.diningMode || (data.mode === 'reserve' ? 'dinein' : data.mode),
+          table_zone: item.options?.tableZone || data.tableZone,
+          spice_level: item.options?.spiceLevel || null,
+          line_total: item.qty * item.item.price
+        }))
+      );
+
+      if (itemsError) {
+        showToast('Order was saved, but some order items could not be recorded.');
+        return;
+      }
+    }
+
     setLastBooking({ reservation: data, total });
   };
 
