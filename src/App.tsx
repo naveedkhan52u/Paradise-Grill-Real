@@ -18,6 +18,9 @@ import { QuickCallModal } from './components/modals/QuickCallModal';
 import { BookingConfirmationModal } from './components/modals/BookingConfirmationModal';
 import { PhotoGalleryModal } from './components/modals/PhotoGalleryModal';
 import { ProfileModal } from './components/modals/ProfileModal';
+import { AdminLogin } from './components/AdminLogin';
+import { AdminDashboard } from './components/AdminDashboard';
+import { supabase } from './lib/supabase';
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ScreenType>(() => getScreenFromLocation());
@@ -64,6 +67,27 @@ export default function App() {
     total: number;
   } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [adminPath, setAdminPath] = useState(() => window.location.pathname === '/admin');
+  const [adminUser, setAdminUser] = useState<any>(null);
+  const [adminAuthChecked, setAdminAuthChecked] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data } = await supabase.auth.getUser();
+      setAdminUser(data.user ?? null);
+      setAdminAuthChecked(true);
+    };
+    checkAdmin();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAdminUser(session?.user ?? null);
+    });
+    const onPop = () => setAdminPath(window.location.pathname === '/admin');
+    window.addEventListener('popstate', onPop);
+    return () => {
+      listener.subscription.unsubscribe();
+      window.removeEventListener('popstate', onPop);
+    };
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -250,6 +274,12 @@ export default function App() {
     syncLocationWithScreen(activeScreen);
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [activeScreen]);
+
+  if (adminPath) {
+    if (!adminAuthChecked) return <div className="min-h-screen bg-[#f6fbf5] flex items-center justify-center"><p className="text-sm font-semibold text-[#57423a]">Checking admin access...</p></div>;
+    if (!adminUser) return <AdminLogin onSuccess={() => setAdminUser(true)} onCancel={() => { window.history.pushState({}, '', '/'); setAdminPath(false); }} />;
+    return <AdminDashboard onExit={() => { window.history.pushState({}, '', '/'); setAdminPath(false); }} />;
+  }
 
   return (
     <div className="min-h-screen w-full bg-[#f6fbf5] text-[#181d1a] flex flex-col items-center justify-start antialiased selection:bg-[#ffdbcd]">
