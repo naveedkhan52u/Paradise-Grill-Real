@@ -277,7 +277,7 @@ export default function App() {
 
   if (adminPath) {
     if (!adminAuthChecked) return <div className="min-h-screen bg-[#f6fbf5] flex items-center justify-center"><p className="text-sm font-semibold text-[#57423a]">Checking admin access...</p></div>;
-    if (!adminUser) return <AdminLogin onSuccess={() => setAdminUser(true)} onCancel={() => { window.history.pushState({}, '', '/'); setAdminPath(false); }} />;
+    if (!adminUser || adminUser.app_metadata?.role !== 'admin') return <AdminLogin onSuccess={(user) => { if (user?.app_metadata?.role === 'admin') setAdminUser(user); }} onCancel={() => { window.history.pushState({}, '', '/'); setAdminPath(false); }} />;
     return <AdminDashboard onExit={() => { window.history.pushState({}, '', '/'); setAdminPath(false); }} />;
   }
 
