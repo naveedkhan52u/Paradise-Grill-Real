@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+
 export interface MenuItem {
   id: string;
   title: string;
@@ -25,7 +27,7 @@ export interface ReviewItem {
   timeAgo: string;
 }
 
-export const RESTAURANT_INFO = {
+const FALLBACK_RESTAURANT_INFO = {
   name: "Paradise Grill",
   fullName: "Paradise Hotel & Restaurant",
   city: "Gilgit",
@@ -63,7 +65,7 @@ export const RESTAURANT_INFO = {
   }
 };
 
-export const MENU_ITEMS: MenuItem[] = [
+const FALLBACK_MENU_ITEMS: MenuItem[] = [
   {
     id: "buffet-1",
     title: "All-You-Can-Eat Live BBQ Buffet",
@@ -241,7 +243,7 @@ export const MENU_ITEMS: MenuItem[] = [
   }
 ];
 
-export const REVIEWS: ReviewItem[] = [
+const FALLBACK_REVIEWS: ReviewItem[] = [
   {
     id: "rev-1",
     author: "Tariq Mahmood",
@@ -271,7 +273,7 @@ export const REVIEWS: ReviewItem[] = [
   }
 ];
 
-export const LANDMARKS = [
+const FALLBACK_LANDMARKS = [
   {
     name: "Gilgit Domestic Airport (GIL)",
     desc: "8 mins drive via Airport Rd & River View",
@@ -292,7 +294,7 @@ export const LANDMARKS = [
   }
 ];
 
-export const WEEKLY_HOURS = [
+const FALLBACK_WEEKLY_HOURS = [
   { day: "Monday", hours: "12:00 PM – 11:30 PM", current: false },
   { day: "Tuesday", hours: "12:00 PM – 11:30 PM", current: false },
   { day: "Wednesday", hours: "12:00 PM – 11:30 PM", current: false },
@@ -302,9 +304,116 @@ export const WEEKLY_HOURS = [
   { day: "Sunday", hours: "12:00 PM – 11:30 PM", current: true }
 ];
 
-export const DELIVERY_ZONES = [
+const FALLBACK_DELIVERY_ZONES = [
   { id: "sonikot", name: "Sonikot & Basin", time: "Est. 25-35 mins", fee: 150 },
   { id: "jutial", name: "Jutial & Konodas", time: "Est. 30-40 mins", fee: 200 },
   { id: "airport", name: "Airport Road & Kashrote", time: "Est. 20-30 mins", fee: 150 },
   { id: "danyore", name: "Danyore Bridge Sector", time: "Est. 40-50 mins", fee: 250 }
 ];
+
+
+type DbRow = Record<string, any>;
+
+async function loadRestaurantDataFromSupabase() {
+  try {
+    const [
+      { data: settings },
+      { data: categories },
+      { data: menu },
+      { data: reviews },
+      { data: zones },
+      { data: hours },
+      { data: landmarks }
+    ] = await Promise.all([
+      supabase.from('restaurant_settings').select('*').limit(1).maybeSingle(),
+      supabase.from('menu_categories').select('*').order('sort_order'),
+      supabase.from('menu_items').select('*').eq('is_available', true).order('sort_order'),
+      supabase.from('reviews').select('*').eq('is_published', true).order('created_at', { ascending: false }),
+      supabase.from('delivery_zones').select('*').eq('is_active', true).order('sort_order'),
+      supabase.from('restaurant_hours').select('*').order('sort_order'),
+      supabase.from('landmarks').select('*').order('sort_order')
+    ]);
+
+    const categoryMap = new Map<string, string>((categories || []).map((c: DbRow) => [c.id, c.slug]));
+
+    const menuItems: MenuItem[] = (menu || []).map((item: DbRow) => ({
+      id: item.id,
+      title: item.title,
+      subtitle: item.subtitle || '',
+      category: (categoryMap.get(item.category_id) || 'bbq') as MenuItem['category'],
+      price: Number(item.price),
+      unit: item.unit || '',
+      description: item.description || '',
+      image: item.image_url || '',
+      badge: item.badge || undefined,
+      badgeType: item.badge_type || undefined,
+      tag: item.tag || undefined,
+      tags: item.tags || [],
+      spiceLevel: item.spice_level || undefined,
+      featured: Boolean(item.featured)
+    }));
+
+    const restaurantInfo = settings ? {
+      ...FALLBACK_RESTAURANT_INFO,
+      name: settings.name || FALLBACK_RESTAURANT_INFO.name,
+      fullName: settings.full_name || FALLBACK_RESTAURANT_INFO.fullName,
+      city: settings.city || FALLBACK_RESTAURANT_INFO.city,
+      region: settings.region || FALLBACK_RESTAURANT_INFO.region,
+      address: settings.address || FALLBACK_RESTAURANT_INFO.address,
+      rating: Number(settings.rating ?? FALLBACK_RESTAURANT_INFO.rating),
+      reviewCount: settings.review_count || FALLBACK_RESTAURANT_INFO.reviewCount,
+      phone: settings.phone || FALLBACK_RESTAURANT_INFO.phone,
+      phoneRaw: settings.phone_raw || FALLBACK_RESTAURANT_INFO.phoneRaw,
+      whatsApp: settings.whatsapp || FALLBACK_RESTAURANT_INFO.whatsApp,
+      email: settings.email || FALLBACK_RESTAURANT_INFO.email,
+      socialLinks: {
+        facebook: settings.facebook_url || FALLBACK_RESTAURANT_INFO.socialLinks.facebook,
+        tiktok: settings.tiktok_url || FALLBACK_RESTAURANT_INFO.socialLinks.tiktok,
+        instagram: settings.instagram_url || FALLBACK_RESTAURANT_INFO.socialLinks.instagram
+      },
+      hoursToday: settings.hours_today || FALLBACK_RESTAURANT_INFO.hoursToday,
+      bbqIgniteTime: settings.bbq_ignite_time || FALLBACK_RESTAURANT_INFO.bbqIgniteTime,
+      kitchenCloseTime: settings.kitchen_close_time || FALLBACK_RESTAURANT_INFO.kitchenCloseTime,
+      googleMapsUrl: settings.google_maps_url || FALLBACK_RESTAURANT_INFO.googleMapsUrl,
+      cashNotice: settings.cash_notice || FALLBACK_RESTAURANT_INFO.cashNotice,
+      images: settings.images || FALLBACK_RESTAURANT_INFO.images
+    } : FALLBACK_RESTAURANT_INFO;
+
+    return {
+      restaurantInfo,
+      menuItems: menuItems.length ? menuItems : FALLBACK_MENU_ITEMS,
+      reviews: reviews?.length ? reviews.map((r: DbRow) => ({
+        id:r.id, author:r.author, role:r.role || '', quote:r.quote, rating:r.rating,
+        source:r.source || '', timeAgo:r.time_ago || ''
+      })) : FALLBACK_REVIEWS,
+      deliveryZones: zones?.length ? zones.map((z: DbRow) => ({
+        id:z.id, name:z.name, time:z.estimated_time || '', fee:Number(z.fee)
+      })) : FALLBACK_DELIVERY_ZONES,
+      weeklyHours: hours?.length ? hours.map((h: DbRow) => ({
+        day:h.day, hours:h.hours, current:Boolean(h.is_current)
+      })) : FALLBACK_WEEKLY_HOURS,
+      landmarks: landmarks?.length ? landmarks.map((l: DbRow) => ({
+        name:l.name, desc:l.description || '', distance:l.distance || '', icon:l.icon || ''
+      })) : FALLBACK_LANDMARKS
+    };
+  } catch (error) {
+    console.warn('Supabase restaurant data load failed; using local fallback data.', error);
+    return {
+      restaurantInfo: FALLBACK_RESTAURANT_INFO,
+      menuItems: FALLBACK_MENU_ITEMS,
+      reviews: FALLBACK_REVIEWS,
+      deliveryZones: FALLBACK_DELIVERY_ZONES,
+      weeklyHours: FALLBACK_WEEKLY_HOURS,
+      landmarks: FALLBACK_LANDMARKS
+    };
+  }
+}
+
+const restaurantData = await loadRestaurantDataFromSupabase();
+
+export const RESTAURANT_INFO = restaurantData.restaurantInfo;
+export const MENU_ITEMS = restaurantData.menuItems;
+export const REVIEWS = restaurantData.reviews;
+export const DELIVERY_ZONES = restaurantData.deliveryZones;
+export const WEEKLY_HOURS = restaurantData.weeklyHours;
+export const LANDMARKS = restaurantData.landmarks;
