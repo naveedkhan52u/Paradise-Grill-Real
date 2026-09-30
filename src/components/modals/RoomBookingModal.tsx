@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RoomItem, RoomBookingData } from '../../types';
 import { RESTAURANT_INFO } from '../../data/restaurantData';
 import { HOTEL_ROOMS } from '../../data/roomsData';
+import { supabase } from '../../lib/supabase';
 
 interface RoomBookingModalProps {
   isOpen: boolean;
@@ -83,7 +84,7 @@ export const RoomBookingModal: React.FC<RoomBookingModalProps> = ({
   const nights = calculateNights();
   const totalPrice = currentRoom.pricePerNight * nights * roomQuantity;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -103,7 +104,6 @@ export const RoomBookingModal: React.FC<RoomBookingModalProps> = ({
     }
 
     const bookingRef = `PGH-${Math.floor(10000 + Math.random() * 90000)}`;
-    setConfirmedBookingId(bookingRef);
 
     const bookingPayload: RoomBookingData = {
       customerName: customerName.trim(),
@@ -116,6 +116,26 @@ export const RoomBookingModal: React.FC<RoomBookingModalProps> = ({
       roomType: currentRoom.name,
       pricePerNight: currentRoom.pricePerNight
     };
+
+    const { error } = await supabase.from('room_bookings').insert({
+      room_id: currentRoom.id,
+      customer_name: bookingPayload.customerName,
+      contact_number: bookingPayload.contactNumber,
+      check_in_date: bookingPayload.checkInDate,
+      check_out_date: bookingPayload.checkOutDate,
+      room_quantity: bookingPayload.roomQuantity,
+      guest_quantity: bookingPayload.guestQuantity,
+      custom_message: bookingPayload.customMessage || null,
+      price_per_night: bookingPayload.pricePerNight,
+      status: 'pending'
+    });
+
+    if (error) {
+      setErrorMsg('We could not record your booking right now. Please try again or call the front desk.');
+      return;
+    }
+
+    setConfirmedBookingId(bookingRef);
 
     if (onBookingSubmitted) {
       onBookingSubmitted(bookingPayload);
