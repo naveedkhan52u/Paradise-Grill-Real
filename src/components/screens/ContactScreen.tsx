@@ -207,39 +207,29 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ onOpenCallModal })
             </div>
 
             {isSent ? (
-              <div className="py-8 text-center space-y-3 bg-[#f0f5f0] rounded-xl p-6 border border-[#dfe4df]">
-                <div className="w-14 h-14 rounded-full bg-[#b8efcc] text-[#002111] flex items-center justify-center mx-auto">
+              <div className="py-8 text-center space-y-4 bg-[#f0f5f0] rounded-xl p-6 border border-[#dfe4df]">
+                <div className="w-14 h-14 rounded-full bg-[#ffdbcd] text-[#9f3e07] flex items-center justify-center mx-auto">
                   <span
-                    className="material-symbols-outlined text-[32px] text-[#36684c]"
+                    className="material-symbols-outlined text-[32px] text-[#9f3e07]"
                     style={{ fontVariationSettings: "'FILL' 1" }}
                   >
-                    check_circle
+                    chat
                   </span>
                 </div>
-                <h3 className="text-lg font-bold text-[#181d1a]">Message Received!</h3>
+                <h3 className="text-lg font-bold text-[#181d1a]">Click Send to WhatsApp</h3>
                 <p className="text-xs sm:text-sm text-[#57423a] max-w-md mx-auto">
-                  Thank you, <span className="font-semibold text-[#181d1a]">{name}</span>. Our team will review your inquiry and reach out to you via {phone}.
+                  Your inquiry is ready. Click the button below to send your details directly to our WhatsApp team so we can contact you quickly.
                 </p>
-                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
+                <div className="pt-1 flex justify-center">
                   <a
                     href={buildWhatsAppInquiryLink()}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#36684c] text-white text-xs font-bold flex items-center justify-center gap-2"
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#36684c] hover:bg-[#275039] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
                   >
                     <span className="material-symbols-outlined text-[18px]">chat</span>
                     <span>Send to WhatsApp</span>
                   </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSent(false);
-                      setMessage('');
-                    }}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#ebefea] text-[#181d1a] text-xs font-semibold cursor-pointer"
-                  >
-                    Send Another Message
-                  </button>
                 </div>
               </div>
             ) : (
