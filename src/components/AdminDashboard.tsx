@@ -200,6 +200,15 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
     if(error) flash(error.message);
     else { flash('Room booking deleted.'); await loadAll(); }
   };
+  
+  const deleteOrder = async (id:string) => {
+    if(!window.confirm('Delete this order permanently?')) return;
+    const {error:itemsError}=await supabase.from('order_items').delete().eq('order_id',id);
+    if(itemsError) { flash(itemsError.message); return; }
+    const {error}=await supabase.from('orders').delete().eq('id',id);
+    if(error) flash(error.message);
+    else { flash('Order deleted.'); await loadAll(); }
+  };
 
   const nav = [
     ['overview','Overview','dashboard'],
@@ -288,7 +297,7 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
                     {status==='pending'&&<><Button onClick={()=>changeRoomBookingStatus(booking.id,'confirmed')}>Accept</Button><Button tone="danger" onClick={()=>changeRoomBookingStatus(booking.id,'cancelled')}>Cancel</Button></>}
                     {status==='confirmed'&&<Button tone="danger" onClick={()=>changeRoomBookingStatus(booking.id,'cancelled')}>Cancel</Button>}
                     {status==='cancelled'&&<span className="rounded-xl bg-[#f0f5f0] px-4 py-2.5 text-xs font-bold text-[#8a7268]">Cancelled</span>}
-                    {(status==='confirmed'||status==='cancelled')&&<Button tone="danger" onClick={()=>deleteRoomBooking(booking.id)}>Delete</Button>}
+                    <Button tone="danger" onClick={()=>deleteRoomBooking(booking.id)}>Delete</Button>
                   </div>
                 </div>
               </div>;
@@ -297,7 +306,7 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
           </div>
         </section>}
 
-        {section==='orders'&&<section className="space-y-5"><div><h2 className="font-headline-md">Orders</h2><p className="mt-1 text-sm text-[#57423a]">View orders, inspect details, and change status.</p></div><div className="space-y-4">{orders.map(o=><div className={cardClass} key={o.id}><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><p className="font-title-lg">{o.guest_name||'Guest'} <span className="text-xs font-normal text-[#8a7268]">· {o.mode}</span></p><p className="mt-1 text-xs text-[#8a7268]">{new Date(o.created_at).toLocaleString()} · {o.guest_phone||'No phone'}</p><p className="mt-3 text-sm"><b>Total:</b> PKR {Number(o.total).toLocaleString()} · <b>Subtotal:</b> PKR {Number(o.subtotal).toLocaleString()}</p>{o.delivery_address&&<p className="mt-1 text-sm text-[#57423a]"><b>Delivery:</b> {o.delivery_address}</p>}{o.special_request&&<p className="mt-1 text-sm text-[#57423a]"><b>Request:</b> {o.special_request}</p>}</div><div className="flex flex-wrap items-center gap-2"><select className={inputClass+' w-auto min-w-36'} value={o.status} onChange={e=>changeOrderStatus(o.id,e.target.value)}><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="preparing">Preparing</option><option value="ready">Ready</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div></div></div>)}{!orders.length&&<div className={cardClass}><p className="text-sm text-[#8a7268]">No orders found.</p></div>}</div></section>}
+        {section==='orders'&&<section className="space-y-5"><div><h2 className="font-headline-md">Orders</h2><p className="mt-1 text-sm text-[#57423a]">View orders, inspect details, and change status.</p></div><div className="space-y-4">{orders.map(o=><div className={cardClass} key={o.id}><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><p className="font-title-lg">{o.guest_name||'Guest'} <span className="text-xs font-normal text-[#8a7268]">· {o.mode}</span></p><p className="mt-1 text-xs text-[#8a7268]">{new Date(o.created_at).toLocaleString()} · {o.guest_phone||'No phone'}</p><p className="mt-3 text-sm"><b>Total:</b> PKR {Number(o.total).toLocaleString()} · <b>Subtotal:</b> PKR {Number(o.subtotal).toLocaleString()}</p>{o.delivery_address&&<p className="mt-1 text-sm text-[#57423a]"><b>Delivery:</b> {o.delivery_address}</p>}{o.special_request&&<p className="mt-1 text-sm text-[#57423a]"><b>Request:</b> {o.special_request}</p>}</div><div className="flex flex-wrap items-center gap-2"><select className={inputClass+' w-auto min-w-36'} value={o.status} onChange={e=>changeOrderStatus(o.id,e.target.value)}><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="preparing">Preparing</option><option value="ready">Ready</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select>{(o.status==='completed'||o.status==='cancelled')&&<Button tone="danger" onClick={()=>deleteOrder(o.id)}>Delete</Button>}</div></div></div>)}{!orders.length&&<div className={cardClass}><p className="text-sm text-[#8a7268]">No orders found.</p></div>}</div></section>}
       </main>
     </div>
   </div>;
