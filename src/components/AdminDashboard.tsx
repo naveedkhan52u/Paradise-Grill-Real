@@ -345,7 +345,18 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
           </div>
         </section>}
 
-        {section==='orders'&&<section className="space-y-5"><div><h2 className="font-headline-md">Orders</h2><p className="mt-1 text-sm text-[#57423a]">View orders, inspect details, and change status.</p></div><div className="space-y-4">{orders.map(o=><div className={cardClass} key={o.id}><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><p className="font-title-lg">{o.guest_name||'Guest'} <span className="text-xs font-normal text-[#8a7268]">· {o.mode}</span></p><p className="mt-1 text-xs text-[#8a7268]">{new Date(o.created_at).toLocaleString()} · {o.guest_phone||'No phone'}</p><p className="mt-3 text-sm"><b>Total:</b> PKR {Number(o.total).toLocaleString()} · <b>Subtotal:</b> PKR {Number(o.subtotal).toLocaleString()}</p>{o.delivery_address&&<p className="mt-1 text-sm text-[#57423a]"><b>Delivery:</b> {o.delivery_address}</p>}{o.special_request&&<p className="mt-1 text-sm text-[#57423a]"><b>Request:</b> {o.special_request}</p>}</div><div className="flex flex-wrap items-center gap-2"><select className={inputClass+' w-auto min-w-36'} value={o.status} onChange={e=>changeOrderStatus(o.id,e.target.value)}><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="preparing">Preparing</option><option value="ready">Ready</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select>{(o.status==='completed'||o.status==='cancelled')&&<Button tone="danger" onClick={()=>deleteOrder(o.id)}>Delete</Button>}</div></div></div>)}{!orders.length&&<div className={cardClass}><p className="text-sm text-[#8a7268]">No orders found.</p></div>}</div></section>}
+        {section==='orders'&&<section className="space-y-5"><div><h2 className="font-headline-md">Orders</h2><p className="mt-1 text-sm text-[#57423a]">View orders, inspect details, and change status.</p></div><div className="space-y-4">{orders.map(o=><div className={cardClass} key={o.id}><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div className="flex flex-wrap items-center gap-2">
+  <p className="font-title-lg">{o.guest_name||'Guest'}</p>
+  <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
+    o.mode==='dinein'
+      ? 'bg-[#e8f8ed] text-[#1d5036]'
+      : o.mode==='pickup'
+      ? 'bg-[#fff4d6] text-[#7a4b00]'
+      : 'bg-[#e8efff] text-[#2454a6]'
+  }`}>
+    {o.mode==='dinein' ? 'Dine-in' : o.mode==='pickup' ? 'Pickup' : 'Delivery'}
+  </span>
+</div><p className="mt-1 text-xs text-[#8a7268]">{new Date(o.created_at).toLocaleString()} · {o.guest_phone||'No phone'}</p><p className="mt-3 text-sm"><b>Total:</b> PKR {Number(o.total).toLocaleString()} · <b>Subtotal:</b> PKR {Number(o.subtotal).toLocaleString()}</p>{o.delivery_address&&<p className="mt-1 text-sm text-[#57423a]"><b>Delivery:</b> {o.delivery_address}</p>}{o.special_request&&<p className="mt-1 text-sm text-[#57423a]"><b>Request:</b> {o.special_request}</p>}</div><div className="flex flex-wrap items-center gap-2"><select className={inputClass+' w-auto min-w-36'} value={o.status} onChange={e=>changeOrderStatus(o.id,e.target.value)}><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="preparing">Preparing</option><option value="ready">Ready</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select>{(o.status==='completed'||o.status==='cancelled')&&<Button tone="danger" onClick={()=>deleteOrder(o.id)}>Delete</Button>}</div></div></div>)}{!orders.length&&<div className={cardClass}><p className="text-sm text-[#8a7268]">No orders found.</p></div>}</div></section>}
       </main>
     </div>
   </div>;
