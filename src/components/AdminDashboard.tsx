@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-type Section = 'overview' | 'restaurant' | 'menu' | 'rooms' | 'orders';
+type Section = 'overview' | 'restaurant' | 'menu' | 'rooms' | 'room-bookings' | 'orders';
 type RestaurantTab = 'information' | 'hours' | 'zones' | 'landmarks';
 type MenuTab = 'categories' | 'items';
 type RoomTab = 'rooms' | 'images';
@@ -185,11 +185,21 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
     await save('orders',id,{status},'Order status updated.');
   };
 
+  const changeRoomBookingStatus = async (id:string,status:'confirmed'|'cancelled') => {
+    const {error}=await supabase.from('room_bookings').update({status,updated_at:new Date().toISOString()}).eq('id',id);
+    if(error) flash(error.message);
+    else {
+      flash(status==='confirmed'?'Room booking accepted.':'Room booking cancelled.');
+      await loadAll();
+    }
+  };
+
   const nav = [
     ['overview','Overview','dashboard'],
     ['restaurant','Restaurant','restaurant'],
     ['menu','Menu','menu_book'],
     ['rooms','Rooms','hotel'],
+    ['room-bookings','Room Bookings','event_available'],
     ['orders','Orders','receipt_long']
   ] as const;
 
@@ -240,6 +250,43 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
           {roomTab==='rooms'&&<div className="space-y-3">{rooms.map(room=><div className={cardClass} key={room.id}><div className="flex flex-col gap-4 md:flex-row"><img src={room.image_url||''} alt="" className="h-28 w-full rounded-xl object-cover md:w-40 bg-[#f0f5f0]"/><div className="flex-1"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-title-lg">{room.name}</p><p className="text-sm text-[#8a7268]">PKR {Number(room.price_per_night).toLocaleString()} / night · {room.capacity}</p></div><div className="flex items-center gap-2"><Toggle checked={room.is_available} onChange={v=>save('rooms',room.id,{is_available:v},v?'Room available.':'Room turned off.')}/><span className="text-xs font-bold">{room.is_available?'Available':'Off'}</span><Button tone="soft" onClick={()=>setEditingRoom({...room,amenities:room.amenities||[]})}>Edit</Button><Button tone="danger" onClick={()=>remove('rooms',room.id,'Room deleted.')}>Delete</Button></div></div><p className="mt-2 text-sm text-[#57423a]">{room.amenities?.join(' · ')}</p></div></div></div>)}</div>}
           {roomTab==='images'&&<div className="space-y-4"><div className={cardClass}><h3 className="font-title-lg">Add room image</h3><div className="mt-4 grid gap-3 md:grid-cols-3"><label className="block space-y-1.5"><span className="text-xs font-bold">Room</span><select className={inputClass} value={newImage.roomId} onChange={e=>setNewImage({...newImage,roomId:e.target.value})}><option value="">Select room</option>{rooms.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><Field label="Image URL" value={newImage.url} onChange={v=>setNewImage({...newImage,url:v})}/><div className="flex items-end"><Button onClick={addImage}>Add image</Button></div></div></div><div className="grid gap-4 md:grid-cols-2">{roomImages.map(img=><div className={cardClass} key={img.id}><img src={img.image_url} alt="" className="h-44 w-full rounded-xl object-cover"/><div className="mt-3 flex items-center justify-between"><span className="text-xs font-bold text-[#57423a]">{rooms.find(r=>r.id===img.room_id)?.name||img.room_id}</span><Button tone="danger" onClick={()=>remove('room_images',img.id,'Image deleted.')}>Delete</Button></div></div>)}</div></div>}
           {editingRoom&&<div className="fixed inset-0 z-50 overflow-y-auto bg-[#181d1a]/50 p-4"><div className="mx-auto my-8 max-w-3xl rounded-3xl bg-[#f6fbf5] p-6 shadow-2xl"><div className="flex justify-between"><h3 className="font-headline-md">Edit room</h3><button onClick={()=>setEditingRoom(null)} className="text-2xl">×</button></div><div className="mt-5 grid gap-4 md:grid-cols-2"><Field label="Name" value={editingRoom.name} onChange={v=>setEditingRoom({...editingRoom,name:v})}/><Field label="Tagline" value={editingRoom.tagline||''} onChange={v=>setEditingRoom({...editingRoom,tagline:v})}/><Field label="Badge" value={editingRoom.badge||''} onChange={v=>setEditingRoom({...editingRoom,badge:v})}/><Field label="Price per night" value={String(editingRoom.price_per_night)} onChange={v=>setEditingRoom({...editingRoom,price_per_night:v})} type="number"/><Field label="Capacity" value={editingRoom.capacity||''} onChange={v=>setEditingRoom({...editingRoom,capacity:v})}/><Field label="Bed type" value={editingRoom.bed_type||''} onChange={v=>setEditingRoom({...editingRoom,bed_type:v})}/><Field label="Size sq ft" value={String(editingRoom.size_sq_ft||0)} onChange={v=>setEditingRoom({...editingRoom,size_sq_ft:v})} type="number"/><Field label="Main image URL" value={editingRoom.image_url||''} onChange={v=>setEditingRoom({...editingRoom,image_url:v})}/><TextAreaField label="Amenities (comma separated)" value={Array.isArray(editingRoom.amenities)?editingRoom.amenities.join(', '):editingRoom.amenities||''} onChange={v=>setEditingRoom({...editingRoom,amenities:v})}/><TextAreaField label="Description" value={editingRoom.description||''} onChange={v=>setEditingRoom({...editingRoom,description:v})}/></div><div className="mt-4 flex items-center gap-2"><Toggle checked={Boolean(editingRoom.is_available)} onChange={v=>setEditingRoom({...editingRoom,is_available:v})}/><span className="text-sm font-bold">Room available</span></div><div className="mt-6 flex justify-end gap-2"><Button tone="soft" onClick={()=>setEditingRoom(null)}>Cancel</Button><Button onClick={saveRoom}>Save room</Button></div></div></div>}
+        </section>}
+
+        {section==='room-bookings'&&<section className="space-y-5">
+          <div><h2 className="font-headline-md">Room Bookings</h2><p className="mt-1 text-sm text-[#57423a]">Review guest requests and accept or cancel bookings.</p></div>
+          <div className="space-y-4">
+            {roomBookings.map(booking=>{
+              const room=rooms.find(r=>r.id===booking.room_id);
+              const status=booking.status||'pending';
+              return <div className={cardClass} key={booking.id}>
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-title-lg">{room?.name||booking.room_id||'Room'}</h3>
+                      <span className={'rounded-full px-3 py-1 text-[11px] font-bold uppercase '+(status==='confirmed'?'bg-[#e8f8ed] text-[#1d5036]':status==='cancelled'?'bg-[#ffe9e7] text-[#93000a]':'bg-[#fff4ef] text-[#9f3e07]')}>{status}</span>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 text-sm">
+                      <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Guest</p><p className="font-semibold">{booking.customer_name||'Guest'}</p></div>
+                      <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Contact</p><p className="font-semibold">{booking.contact_number||'Not provided'}</p></div>
+                      <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Check-in</p><p className="font-semibold">{booking.check_in_date}</p></div>
+                      <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Check-out</p><p className="font-semibold">{booking.check_out_date}</p></div>
+                      <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Rooms</p><p className="font-semibold">{booking.room_quantity||1}</p></div>
+                      <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Guests</p><p className="font-semibold">{booking.guest_quantity||1}</p></div>
+                      <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Price / night</p><p className="font-semibold">PKR {Number(booking.price_per_night||0).toLocaleString()}</p></div>
+                      <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Requested</p><p className="font-semibold">{booking.created_at?new Date(booking.created_at).toLocaleString():'-'}</p></div>
+                    </div>
+                    {booking.custom_message&&<div className="mt-4 rounded-xl bg-[#f0f5f0] p-3 text-sm"><b>Guest message:</b> {booking.custom_message}</div>}
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2 lg:w-44 lg:justify-end">
+                    {status==='pending'&&<><Button onClick={()=>changeRoomBookingStatus(booking.id,'confirmed')}>Accept</Button><Button tone="danger" onClick={()=>changeRoomBookingStatus(booking.id,'cancelled')}>Cancel</Button></>}
+                    {status==='confirmed'&&<Button tone="danger" onClick={()=>changeRoomBookingStatus(booking.id,'cancelled')}>Cancel</Button>}
+                    {status==='cancelled'&&<span className="rounded-xl bg-[#f0f5f0] px-4 py-2.5 text-xs font-bold text-[#8a7268]">Cancelled</span>}
+                  </div>
+                </div>
+              </div>;
+            })}
+            {!roomBookings.length&&<div className={cardClass}><p className="text-sm text-[#8a7268]">No room bookings found.</p></div>}
+          </div>
         </section>}
 
         {section==='orders'&&<section className="space-y-5"><div><h2 className="font-headline-md">Orders</h2><p className="mt-1 text-sm text-[#57423a]">View orders, inspect details, and change status.</p></div><div className="space-y-4">{orders.map(o=><div className={cardClass} key={o.id}><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><p className="font-title-lg">{o.guest_name||'Guest'} <span className="text-xs font-normal text-[#8a7268]">· {o.mode}</span></p><p className="mt-1 text-xs text-[#8a7268]">{new Date(o.created_at).toLocaleString()} · {o.guest_phone||'No phone'}</p><p className="mt-3 text-sm"><b>Total:</b> PKR {Number(o.total).toLocaleString()} · <b>Subtotal:</b> PKR {Number(o.subtotal).toLocaleString()}</p>{o.delivery_address&&<p className="mt-1 text-sm text-[#57423a]"><b>Delivery:</b> {o.delivery_address}</p>}{o.special_request&&<p className="mt-1 text-sm text-[#57423a]"><b>Request:</b> {o.special_request}</p>}</div><div className="flex flex-wrap items-center gap-2"><select className={inputClass+' w-auto min-w-36'} value={o.status} onChange={e=>changeOrderStatus(o.id,e.target.value)}><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="preparing">Preparing</option><option value="ready">Ready</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div></div></div>)}{!orders.length&&<div className={cardClass}><p className="text-sm text-[#8a7268]">No orders found.</p></div>}</div></section>}
