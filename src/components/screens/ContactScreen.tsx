@@ -21,8 +21,20 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ onOpenCallModal })
   };
 
   const buildWhatsAppInquiryLink = () => {
-    const text = `Salam Paradise Hotel & Restaurant Gilgit!%0A%0A*NEW INQUIRY*%0A*Name:* ${name}%0A*Phone:* ${phone}%0A*Subject:* ${category.toUpperCase()}%0A*Message:* ${encodeURIComponent(message)}%0A%0APlease get back to me. Thank you!`;
-    return `https://wa.me/${RESTAURANT_INFO.whatsApp}?text=${text}`;
+    const inquiryText = [
+      'Salam Paradise Hotel & Restaurant Gilgit!',
+      '',
+      '*NEW INQUIRY*',
+      `*Name:* ${name.trim()}`,
+      `*Phone:* ${phone.trim()}`,
+      `*Email:* ${email.trim() || 'Not provided'}`,
+      `*Subject:* ${category.toUpperCase()}`,
+      `*Message:* ${message.trim()}`,
+      '',
+      'Please get back to me. Thank you!'
+    ].join('\\n');
+
+    return `https://wa.me/${RESTAURANT_INFO.whatsApp}?text=${encodeURIComponent(inquiryText)}`;
   };
 
   return (
@@ -216,7 +228,7 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ onOpenCallModal })
                     className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#36684c] text-white text-xs font-bold flex items-center justify-center gap-2"
                   >
                     <span className="material-symbols-outlined text-[18px]">chat</span>
-                    <span>Forward to WhatsApp</span>
+                    <span>Send to WhatsApp</span>
                   </a>
                   <button
                     type="button"
