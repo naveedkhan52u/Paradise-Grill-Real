@@ -22,17 +22,25 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ onOpenCallModal })
 
   const buildWhatsAppInquiryLink = () => {
     const inquiryText = [
-      'Salam Paradise Hotel & Restaurant Gilgit!',
+      '🏨 *PARADISE HOTEL & RESTAURANT GILGIT*',
       '',
-      '*NEW INQUIRY*',
-      `*Name:* ${name.trim()}`,
-      `*Phone:* ${phone.trim()}`,
-      `*Email:* ${email.trim() || 'Not provided'}`,
-      `*Subject:* ${category.toUpperCase()}`,
-      `*Message:* ${message.trim()}`,
+      '📩 *NEW INQUIRY*',
+      '━━━━━━━━━━━━━━━━━━',
       '',
-      'Please get back to me. Thank you!'
-    ].join('\\n');
+      '👤 *Customer Details*',
+      `• *Name:* ${name.trim()}`,
+      `• *Phone:* ${phone.trim()}`,
+      `• *Email:* ${email.trim() || 'Not provided'}`,
+      '',
+      '📌 *Inquiry Type*',
+      `• ${category === 'room' ? 'Hotel Room' : category === 'dining' ? 'Table & BBQ' : category === 'event' ? 'Private Event' : 'Tour Group'}`,
+      '',
+      '📝 *Message*',
+      message.trim(),
+      '',
+      '━━━━━━━━━━━━━━━━━━',
+      'Please contact this customer as soon as possible. Thank you!'
+    ].join('\n');
 
     return `https://wa.me/${RESTAURANT_INFO.whatsApp}?text=${encodeURIComponent(inquiryText)}`;
   };
