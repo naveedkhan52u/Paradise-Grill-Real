@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-type Section = 'overview' | 'restaurant' | 'menu' | 'rooms' | 'room-bookings' | 'orders';
+type Section = 'overview' | 'restaurant' | 'menu' | 'rooms' | 'room-bookings' | 'restaurant-reservations' | 'orders';
 type RestaurantTab = 'information' | 'hours' | 'zones' | 'landmarks';
 type MenuTab = 'categories' | 'items';
 type RoomTab = 'rooms' | 'images';
@@ -185,6 +185,10 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
     await save('orders',id,{status},'Order status updated.');
   };
 
+  const changeReservationStatus = async (id:string,status:'pending'|'confirmed'|'completed'|'cancelled') => {
+    await save('restaurant_reservations',id,{status},'Restaurant reservation status updated.');
+  };
+
   const changeRoomBookingStatus = async (id:string,status:'confirmed'|'cancelled') => {
     const {error}=await supabase.from('room_bookings').update({status,updated_at:new Date().toISOString()}).eq('id',id);
     if(error) flash(error.message);
@@ -216,6 +220,7 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
     ['menu','Menu','menu_book'],
     ['rooms','Rooms','hotel'],
     ['room-bookings','Room Bookings','event_available'],
+    ['restaurant-reservations','Restaurant Reservations','event_seat'],
     ['orders','Orders','receipt_long']
   ] as const;
 
@@ -303,6 +308,40 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
               </div>;
             })}
             {!roomBookings.length&&<div className={cardClass}><p className="text-sm text-[#8a7268]">No room bookings found.</p></div>}
+          </div>
+        </section>}
+
+        {section==='restaurant-reservations'&&<section className="space-y-5">
+          <div><h2 className="font-headline-md">Restaurant Reservations</h2><p className="mt-1 text-sm text-[#57423a]">Review table reservations and update their status.</p></div>
+          <div className="space-y-4">
+            {reservations.map(reservation=><div className={cardClass} key={reservation.id}>
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-title-lg">{reservation.guest_name||'Guest'}</h3>
+                    <span className={'rounded-full px-3 py-1 text-[11px] font-bold uppercase '+(reservation.status==='confirmed'?'bg-[#e8f8ed] text-[#1d5036]':reservation.status==='cancelled'?'bg-[#ffe9e7] text-[#93000a]':'bg-[#fff4ef] text-[#9f3e07]')}>{reservation.status||'pending'}</span>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 text-sm">
+                    <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Phone number</p><p className="font-semibold">{reservation.guest_phone||'Not provided'}</p></div>
+                    <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Table zone</p><p className="font-semibold">{reservation.table_zone||'Not specified'}</p></div>
+                    <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Number of guests</p><p className="font-semibold">{reservation.party_size||1}</p></div>
+                    <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Reservation time</p><p className="font-semibold">{reservation.time_slot||'Not specified'}</p></div>
+                    <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Requested</p><p className="font-semibold">{reservation.created_at?new Date(reservation.created_at).toLocaleString():'-'}</p></div>
+                    <div><p className="text-[11px] font-bold uppercase tracking-wide text-[#8a7268]">Reservation type</p><p className="font-semibold">{reservation.mode||'reserve'}</p></div>
+                  </div>
+                  {reservation.special_request&&<div className="mt-4 rounded-xl bg-[#f0f5f0] p-3 text-sm"><b>Special request:</b> {reservation.special_request}</div>}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <select className={inputClass+' w-auto min-w-40'} value={reservation.status||'pending'} onChange={e=>changeReservationStatus(reservation.id,e.target.value as 'pending'|'confirmed'|'completed'|'cancelled')}>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+            </div>)}
+            {!reservations.length&&<div className={cardClass}><p className="text-sm text-[#8a7268]">No restaurant reservations found.</p></div>}
           </div>
         </section>}
 
