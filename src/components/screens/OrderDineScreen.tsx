@@ -25,7 +25,8 @@ export const OrderDineScreen: React.FC<OrderDineScreenProps> = ({
   const [partySize, setPartySize] = useState<string>('4 Guests');
   const [timeSlot, setTimeSlot] = useState<string>('8:00 PM (Sunset)');
   const [guestName, setGuestName] = useState<string>('');
-  const [guestPhone, setGuestPhone] = useState<string>('0346 8482943');
+  const [guestPhone, setGuestPhone] = useState<string>('');
+  const [contactError, setContactError] = useState<string>('');
   const [specialRequest, setSpecialRequest] = useState<string>('');
   const [pickupTime, setPickupTime] = useState<string>('In 25 mins');
   const [vehicleDetails, setVehicleDetails] = useState<string>('White Prado / GLT-4821');
@@ -44,6 +45,18 @@ export const OrderDineScreen: React.FC<OrderDineScreenProps> = ({
   const grandTotal = itemsSubtotal + packagingFee + deliveryFee;
 
   const handlePrimaryAction = () => {
+    if ((diningMode === 'pickup' || diningMode === 'delivery') && !guestName.trim()) {
+      setContactError('Please enter your full name before placing the order.');
+      return;
+    }
+
+    if ((diningMode === 'pickup' || diningMode === 'delivery') && !guestPhone.trim()) {
+      setContactError('Please enter your phone number so the restaurant can contact you.');
+      return;
+    }
+
+    setContactError('');
+
     const data: ReservationData = {
       mode: diningMode,
       tableZone,
@@ -352,6 +365,28 @@ export const OrderDineScreen: React.FC<OrderDineScreenProps> = ({
 
               <div className="bg-white rounded-xl p-4 shadow-sm border border-[#dfe4df] flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
+                  <label className="text-[11px] sm:text-xs font-semibold text-[#57423a]">Full Name <span className="text-[#9f3e07]">*</span></label>
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#f0f5f0] text-sm text-[#181d1a] placeholder:text-[#8a7268] border border-[#dfe4df] focus:border-[#9f3e07] focus:outline-none"
+                    placeholder="e.g. Naveed Khan"
+                    type="text"
+                    value={guestName}
+                    onChange={e => { setGuestName(e.target.value); setContactError(''); }}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] sm:text-xs font-semibold text-[#57423a]">Contact Phone <span className="text-[#9f3e07]">*</span></label>
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#f0f5f0] text-sm text-[#181d1a] placeholder:text-[#8a7268] border border-[#dfe4df] focus:border-[#9f3e07] focus:outline-none"
+                    placeholder="0346 8482943"
+                    type="tel"
+                    value={guestPhone}
+                    onChange={e => { setGuestPhone(e.target.value); setContactError(''); }}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
                   <label className="text-[11px] sm:text-xs font-semibold text-[#57423a]">
                     Estimated Pickup Time
                   </label>
@@ -403,6 +438,28 @@ export const OrderDineScreen: React.FC<OrderDineScreenProps> = ({
           {diningMode === 'delivery' && (
             <section className="flex flex-col gap-3 animate-in fade-in duration-150">
               <div className="bg-white rounded-xl p-4 shadow-sm border border-[#dfe4df] flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] sm:text-xs font-semibold text-[#57423a]">Full Name <span className="text-[#9f3e07]">*</span></label>
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#f0f5f0] text-sm text-[#181d1a] placeholder:text-[#8a7268] border border-[#dfe4df] focus:border-[#9f3e07] focus:outline-none"
+                    placeholder="e.g. Naveed Khan"
+                    type="text"
+                    value={guestName}
+                    onChange={e => { setGuestName(e.target.value); setContactError(''); }}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] sm:text-xs font-semibold text-[#57423a]">Recipient Phone <span className="text-[#9f3e07]">*</span></label>
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#f0f5f0] text-sm text-[#181d1a] placeholder:text-[#8a7268] border border-[#dfe4df] focus:border-[#9f3e07] focus:outline-none"
+                    placeholder="0346 8482943"
+                    type="tel"
+                    value={guestPhone}
+                    onChange={e => { setGuestPhone(e.target.value); setContactError(''); }}
+                  />
+                </div>
+
                 <div className="flex items-center justify-between">
                   <label className="text-xs sm:text-sm font-bold text-[#181d1a]">Select Gilgit Sector</label>
                   <span className="text-[11px] sm:text-xs text-[#36684c] font-bold">
@@ -590,6 +647,11 @@ export const OrderDineScreen: React.FC<OrderDineScreenProps> = ({
 
           {/* 9. Main Dynamic Action Button */}
           <div className="flex flex-col gap-2 pt-1 pb-4">
+            {contactError && (diningMode === 'pickup' || diningMode === 'delivery') && (
+              <div className="rounded-xl border border-[#f0b8a5] bg-[#fff4ef] px-4 py-3 text-xs sm:text-sm font-semibold text-[#9f3e07]">
+                {contactError}
+              </div>
+            )}
             <button
               onClick={handlePrimaryAction}
               className="w-full h-12 bg-[#9f3e07] hover:bg-[#853405] text-white rounded-xl font-bold text-sm sm:text-base shadow-md flex items-center justify-center gap-2 active:scale-[0.99] transition-transform cursor-pointer"
