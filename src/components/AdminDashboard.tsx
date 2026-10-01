@@ -194,6 +194,13 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
     }
   };
 
+  const deleteRoomBooking = async (id:string) => {
+    if(!window.confirm('Delete this room booking record permanently?')) return;
+    const {error}=await supabase.from('room_bookings').delete().eq('id',id);
+    if(error) flash(error.message);
+    else { flash('Room booking deleted.'); await loadAll(); }
+  };
+
   const nav = [
     ['overview','Overview','dashboard'],
     ['restaurant','Restaurant','restaurant'],
@@ -281,6 +288,7 @@ export const AdminDashboard: React.FC<{onExit:()=>void}> = ({onExit}) => {
                     {status==='pending'&&<><Button onClick={()=>changeRoomBookingStatus(booking.id,'confirmed')}>Accept</Button><Button tone="danger" onClick={()=>changeRoomBookingStatus(booking.id,'cancelled')}>Cancel</Button></>}
                     {status==='confirmed'&&<Button tone="danger" onClick={()=>changeRoomBookingStatus(booking.id,'cancelled')}>Cancel</Button>}
                     {status==='cancelled'&&<span className="rounded-xl bg-[#f0f5f0] px-4 py-2.5 text-xs font-bold text-[#8a7268]">Cancelled</span>}
+                    {(status==='confirmed'||status==='cancelled')&&<Button tone="danger" onClick={()=>deleteRoomBooking(booking.id)}>Delete</Button>}
                   </div>
                 </div>
               </div>;
