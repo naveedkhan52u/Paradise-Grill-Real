@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScreenType, CartItem, ReservationData } from './types';
-import { MENU_ITEMS, RESTAURANT_INFO, MenuItem } from './data/restaurantData';
+import { MENU_ITEMS, RESTAURANT_INFO, MenuItem, DELIVERY_ZONES } from './data/restaurantData';
 import { getScreenFromLocation, syncLocationWithScreen } from './utils/navigation';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -26,7 +26,6 @@ export default function App() {
   const [activeScreen, setActiveScreen] = useState<ScreenType>(() => getScreenFromLocation());
   const [diningMode, setDiningMode] = useState<'reserve' | 'pickup' | 'delivery'>('reserve');
 
-  // Initial cart preloaded with local favorite specialties as shown in screen 3
   const [cart, setCart] = useState<CartItem[]>([
     {
       item: {
@@ -56,7 +55,6 @@ export default function App() {
     }
   ]);
 
-  // Modal states
   const [drawerDish, setDrawerDish] = useState<MenuItem | null>(null);
   const [isDishDrawerOpen, setIsDishDrawerOpen] = useState(false);
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
@@ -102,7 +100,6 @@ export default function App() {
       setDrawerDish(found);
       setIsDishDrawerOpen(true);
     } else {
-      // Default fallback to first item
       setDrawerDish(MENU_ITEMS[0]);
       setIsDishDrawerOpen(true);
     }
@@ -179,73 +176,94 @@ export default function App() {
     const reservationId = crypto.randomUUID();
     const orderId = crypto.randomUUID();
     const itemsSubtotal = cart.reduce((sum, item) => sum + item.qty * item.item.price, 0);
-    const packagingFee = cart.length > 0 ? 120 : 0;
     const deliveryFee = data.mode === 'delivery' ? (deliveryZone?.fee ?? 150) : 0;
 
-    if (data.mode === 'reserve') {
-      const { error: reservationError } = await supabase.from('restaurant_reservations').insert({
-        id: reservationId,
-        mode: 'reserve',
-        table_zone: data.tableZone,
-        party_size: Number.parseInt(data.partySize, 10) || 1,
-        time_slot: data.timeSlot,
+    try {
+      if (data.mode === 'reserve') {
+        const { error: reservationError } = await supabase.from('restaurant_reservations').insert({
+          id: reservationId,
+          mode: 'reserve',
+          table_zone: data.tableZone,
+          party_size: Number.parseInt(data.partySize, 10) || 1,
+          time_slot: data.timeSlot,
+          guest_name: guestName,
+          guest_phone: guestPhone,
+          special_request: data.specialRequest.trim() || null,
+          status: 'pending'
+        });
+
+        if (reservationError) {
+          console.error('Reservation submission failed:', reservationError);
+          showToast('Unable to save the reservation. Please try again.');
+          return;
+        }
+      }
+
+      const { error: orderError } = await supabase.from('orders').insert({
+        id: orderId,
+        reservation_id: data.mode === 'reserve' ? reservationId : null,
+        mode: data.mode === 'reserve' ? 'dinein' : data.mode,
         guest_name: guestName,
         guest_phone: guestPhone,
-        special_request: data.specialRequest || null,
+        table_zone: data.mode === 'reserve' ? data.tableZone : null,
+        pickup_time: data.mode === 'pickup' ? data.pickupTime : null,
+        vehicle_details: data.mode === 'pickup' ? data.vehicleDetails || null : null,
+        delivery_zone_id: data.mode === 'delivery' ? (deliveryZone?.id ?? null) : null,
+        delivery_address: data.mode === 'delivery' ? data.deliveryAddress || null : null,
+        special_request: data.specialRequest.trim() || null,
+        subtotal: itemsSubtotal,
+        delivery_fee: deliveryFee,
+        total,
         status: 'pending'
       });
 
-      if (reservationError) {
-        showToast('Unable to save the reservation. Please try again.');
+      if (orderError) {
+        console.error('Order submission failed:', orderError);
+        showToast('Unable to save the order. Please try again.');
         return;
       }
-    }
 
-    const { error: orderError } = await supabase.from('orders').insert({
-      id: orderId,
-      reservation_id: data.mode === 'reserve' ? reservationId : null,
-      mode: data.mode === 'reserve' ? 'dinein' : data.mode,
-      guest_name: guestName,
-      guest_phone: guestPhone,
-      table_zone: data.mode === 'reserve' ? data.tableZone : null,
-      pickup_time: data.mode === 'pickup' ? data.pickupTime : null,
-      vehicle_details: data.vehicleDetails || null,
-      delivery_zone_id: data.mode === 'delivery' ? (deliveryZone?.id ?? null) : null,
-      delivery_address: data.mode === 'delivery' ? data.deliveryAddress : null,
-      special_request: data.specialRequest || null,
-      subtotal: itemsSubtotal,
-      delivery_fee: deliveryFee,
-      total,
-      status: 'pending'
-    });
+      if (cart.length > 0) {
+        const { data: menuRows, error: menuLookupError } = await supabase
+          .from('menu_items')
+          .select('id')
+          .in('id', cart.map(item => item.item.id));
 
-    if (orderError) {
-      showToast('Unable to save the order. Please try again.');
-      return;
-    }
+        if (menuLookupError) {
+          console.error('Menu item lookup failed:', menuLookupError);
+          showToast('Order saved, but menu items could not be verified.');
+          return;
+        }
 
-    if (cart.length > 0) {
-      const { error: itemsError } = await supabase.from('order_items').insert(
-        cart.map(item => ({
-          order_id: orderId,
-          menu_item_id: item.item.id,
-          item_title: item.item.title,
-          unit_price: item.item.price,
-          quantity: item.qty,
-          dining_mode: item.options?.diningMode || (data.mode === 'reserve' ? 'dinein' : data.mode),
-          table_zone: item.options?.tableZone || data.tableZone,
-          spice_level: item.options?.spiceLevel || null,
-          line_total: item.qty * item.item.price
-        }))
-      );
+        const validMenuItemIds = new Set((menuRows ?? []).map(item => item.id));
 
-      if (itemsError) {
-        showToast('Order was saved, but some order items could not be recorded.');
-        return;
+        const { error: itemsError } = await supabase.from('order_items').insert(
+          cart.map(item => ({
+            order_id: orderId,
+            menu_item_id: validMenuItemIds.has(item.item.id) ? item.item.id : null,
+            item_title: item.item.title,
+            unit_price: item.item.price,
+            quantity: item.qty,
+            dining_mode: item.options?.diningMode || (data.mode === 'reserve' ? 'dinein' : data.mode),
+            table_zone: item.options?.tableZone || data.tableZone,
+            spice_level: item.options?.spiceLevel || null,
+            line_total: item.qty * item.item.price
+          }))
+        );
+
+        if (itemsError) {
+          console.error('Order items submission failed:', itemsError);
+          showToast('Order saved, but the item details could not be recorded.');
+          return;
+        }
       }
-    }
 
-    setLastBooking({ reservation: data, total });
+      setLastBooking({ reservation: data, total });
+      showToast(data.mode === 'reserve' ? 'Reservation and order confirmed!' : 'Your order has been placed!');
+    } catch (error) {
+      console.error('Checkout submission failed:', error);
+      showToast('Something went wrong while submitting. Please try again.');
+    }
   };
 
   const handleResetOrder = () => {
@@ -254,7 +272,6 @@ export default function App() {
 
   const totalCartCount = cart.reduce((acc, curr) => acc + curr.qty, 0);
 
-  // Listen for browser back/forward buttons (history popstate / hash)
   useEffect(() => {
     const handleLocationChange = () => {
       const screen = getScreenFromLocation();
@@ -269,7 +286,6 @@ export default function App() {
     };
   }, []);
 
-  // Sync browser URL, meta tags, and scroll to top whenever active screen changes
   useEffect(() => {
     syncLocationWithScreen(activeScreen);
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
@@ -283,9 +299,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full bg-[#f6fbf5] text-[#181d1a] flex flex-col items-center justify-start antialiased selection:bg-[#ffdbcd]">
-      {/* Responsive Shell Wrapper */}
       <div className="w-full max-w-7xl min-h-screen bg-[#f6fbf5] flex flex-col relative">
-        {/* Fixed Header */}
         <Header
           activeScreen={activeScreen}
           onNavigate={setActiveScreen}
@@ -294,7 +308,6 @@ export default function App() {
           onNavigateHome={() => setActiveScreen('home')}
         />
 
-        {/* Main Content Area */}
         <main className="flex-1 w-full pt-16 flex flex-col">
           <div className="flex-1">
             {activeScreen === 'home' && (
@@ -349,9 +362,7 @@ export default function App() {
             )}
 
             {activeScreen === 'contact' && (
-              <ContactScreen
-                onOpenCallModal={() => setIsCallModalOpen(true)}
-              />
+              <ContactScreen onOpenCallModal={() => setIsCallModalOpen(true)} />
             )}
 
             {activeScreen === 'services' && (
@@ -362,14 +373,12 @@ export default function App() {
             )}
           </div>
 
-          {/* Comprehensive Website Footer */}
           <Footer
             onNavigate={setActiveScreen}
             onOpenCallModal={() => setIsCallModalOpen(true)}
           />
         </main>
 
-        {/* Fixed Bottom Navigation */}
         <BottomNav
           activeScreen={activeScreen}
           onSelectScreen={setActiveScreen}
@@ -377,7 +386,6 @@ export default function App() {
           cartCount={totalCartCount}
         />
 
-        {/* Dish Drawer Modal */}
         <DishDrawer
           item={drawerDish}
           isOpen={isDishDrawerOpen}
@@ -385,13 +393,11 @@ export default function App() {
           onAddToCart={handleAddToCartFromDrawer}
         />
 
-        {/* Quick Call Modal */}
         <QuickCallModal
           isOpen={isCallModalOpen}
           onClose={() => setIsCallModalOpen(false)}
         />
 
-        {/* Booking & Order Confirmation Modal */}
         <BookingConfirmationModal
           isOpen={!!lastBooking}
           reservation={lastBooking ? lastBooking.reservation : null}
@@ -401,7 +407,6 @@ export default function App() {
           onReset={handleResetOrder}
         />
 
-        {/* Photo Gallery Modal */}
         <PhotoGalleryModal
           isOpen={!!galleryPhoto}
           imageUrl={galleryPhoto?.url || null}
@@ -409,7 +414,6 @@ export default function App() {
           onClose={() => setGalleryPhoto(null)}
         />
 
-        {/* Guest Profile & Info Modal */}
         <ProfileModal
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
@@ -419,7 +423,6 @@ export default function App() {
           }}
         />
 
-        {/* Toast Feedback Notification */}
         {toastMessage && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#2c322e] text-white px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2 border border-white/20 animate-in fade-in slide-in-from-top-2 duration-200">
             <span
